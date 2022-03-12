@@ -8,9 +8,9 @@ on:
     secrets:
       AWS_ROOT_ACCOUNT:
         required: true
-      BEDROCK_TF_VARS:
+      BEDROCK_TF_VARS: # Ensure these are base64 encoded in secrets, we need linefeeds
         required: true
-      BEDROCK_TF_STATE:
+      BEDROCK_TF_STATE: # Ensure these are base64 encoded in secrets, we need linefeeds
         required: true
 
 jobs:
@@ -25,22 +25,26 @@ jobs:
         working-directory: ./tf/${{ inputs.account }}
     env:
       account: ${{ inputs.account }}
+      AWS_ROOT_ACCOUNT: ${{ secrets.AWS_ROOT_ACCOUNT }}
+      BEDROCK_TF_VARS: ${{ secrets.BEDROCK_TF_VARS }}
+      BEDROCK_TF_STATE: ${{ secrets.BEDROCK_TF_STATE }}
 
     steps:
       - name: Check out repo
         uses: actions/checkout@v2
 
 # Github Actions method that replaces the aws_assumerole_oidc.sh deploy script
-      - name: AWS credentials Bootstrap
+      - name: AWS credentials Bootstrap (GitHub Action)
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ROOT_ACCOUNT }}:role/Github-Bootstrap
+          role-to-assume: arn:aws:iam::${{ env.AWS_ROOT_ACCOUNT }}:role/Github-Bootstrap
+          role-session-name: GitHub-bootstrap
           aws-region: ap-southeast-2
 
       - name: Export Session Credentials
         id: bootstrap
         run: |
-          if [ ! -f terraform.tfvars ]; then echo '${{ secrets.BEDROCK_TF_VARS }}' > "terraform.tfvars"; else echo "tfvars part of repo"; fi
+          if [ ! -f terraform.tfvars ]; then echo '${{ env.BEDROCK_TF_VARS }}' | base64 --decode > "terraform.tfvars"; else echo "tfvars part of repo"; fi
           RGN="$(cat terraform.tfvars | grep base_region | cut -d = -f2 | tr -d '[:blank:]\"')"
 
           echo "::set-output name=STS_RGN::$RGN"
@@ -55,15 +59,10 @@ jobs:
           aws-secret-access-key: ${{ steps.bootstrap.outputs.STS_KEY }}
           aws-session-token: ${{ steps.bootstrap.outputs.STS_TKN }}
           aws-region: ${{ steps.bootstrap.outputs.STS_RGN }}
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ROOT_ACCOUNT }}:role/bedrock-deploy
+          role-to-assume: arn:aws:iam::${{ env.AWS_ROOT_ACCOUNT }}:role/bedrock-deploy
           role-skip-session-tagging: true
           role-duration-seconds: 3600
           role-session-name: MgmtAdminSession
-
-      - name: Generate Artifacts from Secrets, Maintain Compatibility with GitLab
-        run: |
-          echo '${{ secrets.BEDROCK_TF_VARS }}' > terraform.tfvars
-          echo '${{ secrets.BEDROCK_TF_STATE }}' > remote_state.tf
 
       - name: Terraform State and Init
         env:

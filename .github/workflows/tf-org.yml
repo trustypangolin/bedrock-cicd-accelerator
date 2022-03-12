@@ -10,6 +10,17 @@ on:
       - tf/org/**
   workflow_dispatch:
 
+# Ensure these variables are encoded with base64 and stored in secrets
+# We require line feeds in the variables, and GitHub doesnt support line feeds in secrets
+# They are copies of the remote state file setup and general variables
+# The other option is to just push these possibly sensitive variables to the repo
+
+# BEDROCK_TF_VARS
+# BEDROCK_TF_STATE
+
+# This variable is stored as normal text in secrets, its the management account id
+# AWS_ROOT_ACCOUNT
+
 jobs:
 # Ensure the Organisation has all the required outputs for the Accounts
   call-org:

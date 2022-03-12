@@ -1,0 +1,32 @@
+name: Terraform Shared Deployment
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - tf/shared/**
+  pull_request:
+    paths:
+      - tf/shared/**
+  workflow_dispatch:
+
+# Ensure these variables are encoded with base64 and stored in secrets
+# We require line feeds in the decoded variables
+# They are copies of the state file setup and general variables
+
+# BEDROCK_TF_VARS
+# BEDROCK_TF_STATE
+
+# This variable is stored as normal text in secrets, its the management account id
+# AWS_ROOT_ACCOUNT
+
+jobs:
+  call-shared:
+    uses: ./.github/workflows/tf-account.yml
+    with:
+      account: shared
+    secrets:
+      AWS_ROOT_ACCOUNT: ${{ secrets.AWS_ROOT_ACCOUNT }}
+      FOUNDATION_TF_VARS: ${{ secrets.FOUNDATION_TF_VARS }}
+      FOUNDATION_TF_STATE: ${{ secrets.FOUNDATION_TF_STATE }}
+
